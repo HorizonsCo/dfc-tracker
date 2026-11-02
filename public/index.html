@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizons 30×30 Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #F1F5F3; --surface: #FFFFFF; --ink: #13201C; --muted: #5A6A65; --line: #D9E2DE;
+  --done: #0B7A62; --done-soft: #DDF0EA; --today: #E8962A; --today-soft: #FDF0DC;
+  --miss: #B9C4C0; --on-done: #FFFFFF; --err: #B3261E;
+  --gold: #C99A1B; --silver: #8C979C; --bronze: #B06A3B;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E1614; --surface: #16211E; --ink: #E6EFEC; --muted: #93A59F; --line: #27352F;
+    --done: #34B892; --done-soft: #173A30; --today: #F2AE52; --today-soft: #3A2C17;
+    --miss: #3A4844; --on-done: #08130F; --err: #F2B8B5;
+    --gold: #E2B840; --silver: #AEB8BC; --bronze: #D08A5A;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+header.mast { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px; margin-bottom: 24px; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(40px, 7vw, 64px); line-height: .95; margin: 4px 0 0; }
+h1 .x { color: var(--done); }
+.dates { color: var(--muted); margin-top: 6px; }
+.firm { display: flex; gap: 28px; flex-wrap: wrap; }
+.stat .n { font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.board { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.side { display: grid; gap: 20px; }
+@media (max-width: 860px) { .board { grid-template-columns: minmax(0, 1fr); } .side { order: -1; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-width: 0; }
+.panel h2 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .02em; text-transform: uppercase; margin: 0 0 14px; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.panel-head h2 { margin: 0; }
+
+/* Picker */
+.search { font: inherit; font-size: 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; margin-bottom: 12px; }
+.names { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; max-height: 420px; overflow-y: auto; }
+.name-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.name-btn:hover { border-color: var(--done); }
+.name-btn .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.name-btn .c { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+form.reg { display: grid; gap: 10px; }
+form.reg label { font-weight: 600; }
+form.reg input { font: inherit; font-size: 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+
+/* Calendar */
+.cal-head, .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-head div { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); text-align: center; padding-bottom: 6px; font-weight: 600; }
+.day { aspect-ratio: 1 / 1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface);
+  display: flex; flex-direction: column; justify-content: space-between; padding: 7px 8px; position: relative; font: inherit; color: inherit; text-align: left; min-width: 0; }
+.day .num { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1; }
+.day .mon { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.day .tag { font-size: 10px; color: var(--muted); }
+.day.blank { visibility: hidden; }
+.day.future { opacity: .55; }
+.day.missed { background: transparent; border-style: dashed; border-color: var(--miss); }
+.day.missed .num { color: var(--muted); }
+.day.done { background: var(--done); border-color: var(--done); color: var(--on-done); }
+.day.done .mon, .day.done .tag { color: var(--on-done); opacity: .85; }
+.day .check { position: absolute; top: 6px; right: 7px; width: 16px; height: 16px; }
+.day.today { border: 2px solid var(--today); background: var(--today-soft); cursor: pointer; }
+.day.today.done { background: var(--done); }
+.day:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--today); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .cal, .cal-head { gap: 4px; } .day { padding: 4px 5px; border-radius: 8px; } .day .num { font-size: 16px; }
+  .day .tag, .day .mon { display: none; } .day .check { width: 12px; height: 12px; top: 4px; right: 4px; }
+}
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+.sw.d { background: var(--done); border-color: var(--done); } .sw.t { background: var(--today-soft); border: 2px solid var(--today); } .sw.m { border: 1px dashed var(--miss); }
+
+/* Today */
+.today-panel { border-color: var(--today); }
+.today-date { font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1.05; }
+.today-sub { color: var(--muted); margin: 4px 0 16px; }
+.btn { appearance: none; border: 0; border-radius: 10px; font: inherit; font-weight: 700; font-size: 16px; padding: 14px 18px; width: 100%; background: var(--done); color: var(--on-done); cursor: pointer; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 600; font-size: 14px; padding: 9px 14px; margin-top: 8px; }
+.link { background: none; border: 0; color: var(--done); font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 0; }
+.done-msg { display: flex; align-items: center; gap: 10px; background: var(--done-soft); border-radius: 10px; padding: 12px 14px; font-weight: 600; }
+.done-msg svg { flex: none; color: var(--done); }
+.mine { display: flex; gap: 24px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.err { color: var(--err); font-size: 13px; margin-top: 8px; min-height: 1em; }
+.hello { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.1; overflow-wrap: anywhere; }
+
+/* Leaderboard */
+.podium { display: grid; gap: 10px; }
+.row { display: grid; grid-template-columns: 34px 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); }
+.row.me { border-color: var(--done); background: var(--done-soft); }
+.medal { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 18px; color: var(--on-done); }
+.r1 .medal { background: var(--gold); } .r2 .medal { background: var(--silver); } .r3 .medal { background: var(--bronze); }
+.av { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--done-soft); color: var(--done); font-weight: 700; font-size: 13px; flex: none; }
+.who { min-width: 0; }
+.who .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who .st { font-size: 12px; color: var(--muted); }
+.score { font-family: var(--display); font-weight: 700; font-size: 26px; text-align: right; line-height: 1; }
+.score small { font-family: var(--body); font-size: 11px; color: var(--muted); font-weight: 500; display: block; }
+.empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+.yourpos { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.status { font-size: 12px; color: var(--muted); margin-top: 18px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <div class="eyebrow">Dubai Fitness Challenge · Horizons Team</div>
+      <h1>30 minutes <span class="x">×</span> 30 days</h1>
+      <div class="dates">31 October – 29 November 2026 · tick off each day you move for 30 minutes</div>
+    </div>
+    <div class="firm">
+      <div class="stat"><div class="n" id="f-people">–</div><div class="l">Taking part</div></div>
+      <div class="stat"><div class="n" id="f-days">–</div><div class="l">Days completed</div></div>
+      <div class="stat"><div class="n" id="f-hours">–</div><div class="l">Hours moved</div></div>
+    </div>
+  </header>
+
+  <!-- Screen 1: pick your name or register -->
+  <div class="board" id="view-pick">
+    <section class="panel">
+      <h2>Find your name</h2>
+      <input class="search" id="search" type="search" placeholder="Search names…" autocomplete="off">
+      <div class="names" id="names"><div class="empty">Loading names…</div></div>
+    </section>
+    <div class="side">
+      <section class="panel today-panel">
+        <h2>New here? Register</h2>
+        <form class="reg" id="reg-form">
+          <label for="reg-name">Your full name</label>
+          <input id="reg-name" autocomplete="name" maxlength="40" placeholder="e.g. Sara Ahmed">
+          <button class="btn" type="submit" id="reg-btn">Register &amp; open my calendar</button>
+          <div class="err" id="reg-err"></div>
+        </form>
+        <div class="note">Already registered? Just tap your name. 31 Oct and 1 Nov are counted for everyone.</div>
+      </section>
+      <section class="panel">
+        <h2>Leaderboard · Top 3</h2>
+        <div class="podium lb"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Screen 2: a person's calendar -->
+  <div class="board" id="view-cal" hidden>
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="cal-title">My calendar</h2>
+        <button class="link" type="button" id="switch">Not you? Switch name</button>
+      </div>
+      <div class="cal-head" aria-hidden="true"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
+      <div class="cal" id="cal"></div>
+      <div class="legend">
+        <span><i class="sw d"></i>Done</span>
+        <span><i class="sw t"></i>Today (the only day you can tick)</span>
+        <span><i class="sw m"></i>Missed</span>
+        <span><i class="sw"></i>Coming up</span>
+      </div>
+    </section>
+    <div class="side">
+      <section class="panel today-panel">
+        <div class="hello" id="hello"></div>
+        <div class="today-date" id="t-date"></div>
+        <div class="today-sub" id="t-sub"></div>
+        <div id="t-action"></div>
+        <div class="err" id="t-err"></div>
+        <div class="mine">
+          <div class="stat"><div class="n" id="m-count">0</div><div class="l">My days</div></div>
+          <div class="stat"><div class="n" id="m-streak">0</div><div class="l">Current streak</div></div>
+          <div class="stat"><div class="n" id="m-left">–</div><div class="l">Days left</div></div>
+        </div>
+        <div class="note">Past days can't be ticked. Come back each day to log it.</div>
+      </section>
+      <section class="panel">
+        <h2>Leaderboard · Top 3</h2>
+        <div class="podium lb"></div>
+        <div class="yourpos" id="lb-you"></div>
+      </section>
+    </div>
+  </div>
+  <div class="status" id="status">Connecting…</div>
+</div>
+
+<script>
+(function () {
+  var START = "2026-10-31", TOTAL = 30, DAYS = [];
+  (function () { var d = new Date(Date.UTC(2026, 9, 31)); for (var i = 0; i < TOTAL; i++) { DAYS.push(d.toISOString().slice(0, 10)); d = new Date(d.getTime() + 86400000); } })();
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var CHECK = '<svg class="check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = { today: null, grace: [], people: [], me: null, busy: false, loaded: false };
+  try { state.me = localStorage.getItem("hz3030-id"); } catch (e) {}
+
+  function parts(iso) { var p = iso.split("-"); return { y: +p[0], m: +p[1] - 1, d: +p[2] }; }
+  function weekday(iso) { var p = parts(iso); return new Date(Date.UTC(p.y, p.m, p.d)).getUTCDay(); }
+  function prevDay(iso) { var p = parts(iso); return new Date(Date.UTC(p.y, p.m, p.d) - 86400000).toISOString().slice(0, 10); }
+  function streakOf(set, today) { var d = set.has(today) ? today : prevDay(today), n = 0; while (set.has(d)) { n++; d = prevDay(d); } return n; }
+  function initials(n) { return n.split(" ").filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join(""); }
+  function person(id) { return state.people.filter(function (p) { return p.id === id; })[0]; }
+
+  function api(path, body) {
+    return fetch("/api/" + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't reach the tracker. Please try again."); return j; }); });
+  }
+
+  function setMe(id) {
+    state.me = id;
+    try { id ? localStorage.setItem("hz3030-id", id) : localStorage.removeItem("hz3030-id"); } catch (e) {}
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function ranked() {
+    var today = state.today;
+    return state.people.map(function (p) { var s = new Set(p.days); return { id: p.id, name: p.name, count: s.size, streak: streakOf(s, today) }; })
+      .sort(function (a, b) { return b.count - a.count || b.streak - a.streak || a.name.localeCompare(b.name); });
+  }
+
+  function renderNames() {
+    var box = $("names"), q = $("search").value.trim().toLowerCase();
+    box.textContent = "";
+    var list = state.people.slice().sort(function (a, b) { return a.name.localeCompare(b.name); })
+      .filter(function (p) { return !q || p.name.toLowerCase().indexOf(q) !== -1; });
+    if (!list.length) {
+      var e = document.createElement("div"); e.className = "empty";
+      e.textContent = state.people.length ? "No match. Register on the right if you're new." : "No one has registered yet. Be the first!";
+      box.appendChild(e); return;
+    }
+    list.forEach(function (p) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "name-btn";
+      var av = document.createElement("span"); av.className = "av"; av.textContent = initials(p.name);
+      var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = p.name;
+      var c = document.createElement("span"); c.className = "c"; c.textContent = p.days.length + "/30";
+      b.appendChild(av); b.appendChild(nm); b.appendChild(c);
+      b.addEventListener("click", function () { setMe(p.id); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderCalendar(p) {
+    var cal = $("cal"); cal.textContent = "";
+    var mine = new Set(p.days), today = state.today;
+    var lead = (weekday(START) + 6) % 7;
+    for (var b = 0; b < lead; b++) { var bl = document.createElement("div"); bl.className = "day blank"; cal.appendChild(bl); }
+    DAYS.forEach(function (iso, i) {
+      var pt = parts(iso), isToday = iso === today, done = mine.has(iso);
+      var el = document.createElement(isToday ? "button" : "div"), cls = ["day"];
+      if (done) cls.push("done");
+      if (isToday) cls.push("today"); else if (iso > today) cls.push("future"); else if (!done) cls.push("missed");
+      el.className = cls.join(" ");
+      el.setAttribute("aria-label", pt.d + " " + MONTHS[pt.m] + (done ? ", done" : isToday ? ", today" : iso > today ? ", upcoming" : ", missed"));
+      if (isToday) { el.type = "button"; el.addEventListener("click", function () { if (!mine.has(today)) save("done"); }); }
+      el.innerHTML = '<div><div class="num"></div><div class="mon"></div></div><div class="tag"></div>' + (done ? CHECK : "");
+      el.querySelector(".num").textContent = pt.d;
+      el.querySelector(".mon").textContent = (pt.d === 1 || i === 0) ? MONTHS[pt.m] : "";
+      el.querySelector(".tag").textContent = isToday ? "Today" : state.grace.indexOf(iso) !== -1 ? "Auto-done" : "Day " + (i + 1);
+      cal.appendChild(el);
+    });
+  }
+
+  function renderToday(p) {
+    var today = state.today, pt = parts(today), idx = DAYS.indexOf(today), mine = new Set(p.days), action = $("t-action");
+    $("hello").textContent = "Hi, " + p.name.split(" ")[0] + "!";
+    $("cal-title").textContent = p.name + "'s calendar";
+    $("t-date").textContent = WEEKDAYS[weekday(today)] + " " + pt.d + " " + MONTHS[pt.m];
+    action.textContent = "";
+    if (idx === -1) {
+      $("t-sub").textContent = today < START ? "The challenge starts on Saturday 31 October." : "The challenge has finished. Thanks for moving with us!";
+    } else if (mine.has(today)) {
+      $("t-sub").textContent = "Day " + (idx + 1) + " of 30";
+      var m = document.createElement("div"); m.className = "done-msg";
+      m.innerHTML = '<svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Today is done. See you tomorrow!</span>';
+      action.appendChild(m);
+      var u = document.createElement("button"); u.className = "btn ghost"; u.type = "button";
+      u.textContent = state.busy ? "Saving…" : "Undo today"; u.disabled = state.busy;
+      u.addEventListener("click", function () { save("undo"); }); action.appendChild(u);
+    } else {
+      $("t-sub").textContent = "Day " + (idx + 1) + " of 30 · did you get your 30 minutes in?";
+      var d = document.createElement("button"); d.className = "btn"; d.type = "button";
+      d.textContent = state.busy ? "Saving…" : "Done — I moved 30 minutes today"; d.disabled = state.busy;
+      d.addEventListener("click", function () { save("done"); }); action.appendChild(d);
+    }
+    $("m-count").textContent = mine.size;
+    $("m-streak").textContent = streakOf(mine, today);
+    $("m-left").textContent = today < START ? 30 : DAYS.filter(function (x) { return x >= today; }).length;
+  }
+
+  function renderBoard() {
+    var rows = ranked(), total = rows.reduce(function (n, r) { return n + r.count; }, 0);
+    $("f-people").textContent = rows.length;
+    $("f-days").textContent = total;
+    $("f-hours").textContent = (total * 0.5).toLocaleString("en", { maximumFractionDigits: 1 });
+    Array.prototype.forEach.call(document.querySelectorAll(".lb"), function (lb) {
+      lb.textContent = "";
+      if (!rows.length) { var e = document.createElement("div"); e.className = "empty"; e.textContent = "No check-ins yet."; lb.appendChild(e); }
+      rows.slice(0, 3).forEach(function (r, i) {
+        var row = document.createElement("div"); row.className = "row r" + (i + 1) + (r.id === state.me ? " me" : "");
+        var medal = document.createElement("div"); medal.className = "medal"; medal.textContent = i + 1;
+        var av = document.createElement("div"); av.className = "av"; av.textContent = initials(r.name);
+        var who = document.createElement("div"); who.className = "who";
+        var nm = document.createElement("div"); nm.className = "nm"; nm.textContent = r.name;
+        var st = document.createElement("div"); st.className = "st"; st.textContent = r.streak ? r.streak + "-day streak" : "No current streak";
+        who.appendChild(nm); who.appendChild(st);
+        var sc = document.createElement("div"); sc.className = "score"; sc.textContent = r.count;
+        var sm = document.createElement("small"); sm.textContent = "of 30 days"; sc.appendChild(sm);
+        row.appendChild(medal); row.appendChild(av); row.appendChild(who); row.appendChild(sc); lb.appendChild(row);
+      });
+    });
+    var pos = rows.findIndex(function (r) { return r.id === state.me; });
+    $("lb-you").textContent = pos >= 3 ? "You're in position " + (pos + 1) + " of " + rows.length + " with " + rows[pos].count + " days." : "";
+  }
+
+  function render() {
+    if (!state.today) return;
+    var p = state.me && person(state.me);
+    $("view-pick").hidden = !!p;
+    $("view-cal").hidden = !p;
+    if (p) { renderCalendar(p); renderToday(p); } else { renderNames(); }
+    renderBoard();
+  }
+
+  function apply(s) {
+    state.today = s.today; state.grace = s.grace || []; state.people = s.people || []; state.loaded = true;
+    $("status").textContent = "Live · refreshes every 30 seconds";
+    render();
+  }
+
+  function save(action) {
+    if (state.busy || !state.me) return;
+    state.busy = true; $("t-err").textContent = ""; render();
+    api(action, { id: state.me })
+      .then(function (s) { state.busy = false; apply(s); })
+      .catch(function (err) { state.busy = false; $("t-err").textContent = err.message; render(); });
+  }
+
+  $("reg-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("reg-name").value.replace(/\s+/g, " ").trim();
+    if (name.length < 2) { $("reg-err").textContent = "Please enter your full name."; return; }
+    $("reg-err").textContent = ""; $("reg-btn").disabled = true; $("reg-btn").textContent = "Registering…";
+    api("register", { name: name })
+      .then(function (r) { $("reg-name").value = ""; apply(r.state); setMe(r.person.id); })
+      .catch(function (err) { $("reg-err").textContent = err.message; })
+      .then(function () { $("reg-btn").disabled = false; $("reg-btn").textContent = "Register & open my calendar"; });
+  });
+  $("search").addEventListener("input", renderNames);
+  $("switch").addEventListener("click", function () { setMe(null); });
+
+  function refresh() {
+    if (state.busy) return;
+    api("state").then(apply).catch(function () { $("status").textContent = "Can't reach the tracker right now. Retrying…"; });
+  }
+  refresh();
+  setInterval(refresh, 30000);
+})();
+</script>
+</body>
+</html>

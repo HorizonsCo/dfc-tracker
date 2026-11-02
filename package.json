@@ -1,0 +1,8 @@
+{
+  "name": "horizons-30x30-tracker",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "10.7.13"
+  }
+}
